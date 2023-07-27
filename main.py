@@ -25,12 +25,12 @@ def save_to_chroma(path):
     docs = text_splitter.split_documents(documents)
     # 实例化embedding模型
     embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
-    # load it into Chroma
+    # 从磁盘加载
     Chroma.from_documents(docs, embedding_function, persist_directory="./chroma_db")
 
 
 def search_from_chroma(query):
-    # load from disk
+    # 从磁盘加载
     db3 = Chroma(persist_directory="./chroma_db", embedding_function=embedding_function)
     docs = db3.similarity_search(query)
     context = docs[0].page_content
