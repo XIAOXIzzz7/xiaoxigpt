@@ -25,7 +25,7 @@ def save_to_chroma(path):
     docs = text_splitter.split_documents(documents)
     # 实例化embedding模型
     embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
-    # 从磁盘加载
+    # 设置persist_directory可持久化保存至磁盘
     Chroma.from_documents(docs, embedding_function, persist_directory="./chroma_db")
 
 
