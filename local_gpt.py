@@ -12,6 +12,13 @@ from langchain.prompts import (
 from langchain import LLMChain
 import os
 
+import chromadb
+
+import json
+import logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
+
 class LocalGptX():
     embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
 
@@ -22,7 +29,7 @@ class LocalGptX():
         # 加载文档并将其拆分成块
         loader = TextLoader(path)
         documents = loader.load()
-        text_splitter = CharacterTextSplitter(chunk_size=256, chunk_overlap=128)
+        text_splitter = CharacterTextSplitter(chunk_size=128, chunk_overlap=32)
         docs = text_splitter.split_documents(documents)
         # 实例化embedding模型
         embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
@@ -37,14 +44,14 @@ class LocalGptX():
         template = """\
         已知信息：
         {context}
-        根据上述已知信息，简洁和专业的来回答用户的问题。如果无法从中得到答案，请说 “根据已知信息无法回答该问题” 或 “没有提供足够的相关信息”，不允许在答案中添加编造成分，答案请使用中文。问题是：{query}
+        根据上述已知信息，简洁和专业的来回答用户的问题，并且不要在回答中返回我的提问内容。如果无法从中得到答案，请说 “根据已知信息无法回答该问题” 或 “没有提供足够的相关信息”，不允许在答案中添加编造成分，答案请使用中文。问题是：{query}
         """
         multiple_input_prompt = PromptTemplate(
             input_variables=["context", "query"],
             template=template
         )
-        print(multiple_input_prompt.format(context=context, query=query))
-        print("-----------------")
+        logger.info(multiple_input_prompt.format(context=context, query=query))
+        logger.info("-----------")
         llm_chain = LLMChain(prompt=multiple_input_prompt, llm=llm)
         return llm_chain.run(context=context, query=query, max_length=2048)
 
@@ -67,7 +74,7 @@ class LocalGptX():
             "text-generation",
             model=model,
             tokenizer=tokenizer,
-            max_new_tokens=4096,
+            max_new_tokens=2048,
 
         )
         local_llm = HuggingFacePipeline(pipeline=pipe)
@@ -79,6 +86,8 @@ if __name__ == '__main__':
     if not os.path.exists("./chroma_db"):
         localgpt.save_to_chroma("./刑法.txt")
     llm = localgpt.llm()
+    # query = input("请输入你的问题：")
+    # print(localgpt.search_from_chroma(llm, query))
     while True:
         query = input("请输入你的问题：")
         if query == "exit()":
