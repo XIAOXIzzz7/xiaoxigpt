@@ -21,7 +21,7 @@ def save_to_chroma(path):
     # 加载文档并将其拆分成块
     loader = TextLoader(path)
     documents = loader.load()
-    text_splitter = CharacterTextSplitter(chunk_size=256, chunk_overlap=128)
+    text_splitter = CharacterTextSplitter(chunk_size=128, chunk_overlap=32)
     docs = text_splitter.split_documents(documents)
     # 实例化embedding模型
     embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
@@ -48,7 +48,7 @@ def search_from_chroma(query):
 
 def llm(info, context, query):
     model_id = "lmsys/vicuna-7b-v1.3"
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained("lmsys/vicuna-7b-v1.3")
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         # 指定模型在哪个设备上运行。设置为"auto"时，会自动选择可用的设备。
@@ -70,19 +70,18 @@ def llm(info, context, query):
     local_llm = HuggingFacePipeline(pipeline=pipe)
     #info内容为prompt模板
     llm_chain = LLMChain(prompt=info, llm=local_llm)
-    print(info)
+    # print(info)
     #context为知识库查询到的相关内容
-    print(context)
-    #query为用户提问
-    print(query)
+    print(info.format(context=context,query=query))
+    # #query为用户提问
+    # print(query)
+    print("------------")
     return llm_chain.run(context=context, query=query)
 
 
 
 if __name__ == '__main__':
     # save_to_chroma("./刑法.txt")
-    query = "在出版物中刊载歧视、侮辱少数民族的内容会被判几年刑罚"
+    query = "有下列重大立功表现之一可以减刑"
     info, context = search_from_chroma(query)
     print(llm(info, context, query))
-
-
