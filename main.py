@@ -48,7 +48,7 @@ def search_from_chroma(query):
 
 def llm(info, context, query):
     model_id = "lmsys/vicuna-7b-v1.3"
-    tokenizer = AutoTokenizer.from_pretrained("lmsys/vicuna-7b-v1.3")
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         # 指定模型在哪个设备上运行。设置为"auto"时，会自动选择可用的设备。
@@ -81,7 +81,7 @@ def llm(info, context, query):
 
 
 if __name__ == '__main__':
-    # save_to_chroma("./刑法.txt")
-    query = "有下列重大立功表现之一可以减刑"
-    info, context = search_from_chroma(query)
-    print(llm(info, context, query))
+    save_to_chroma("./刑法.txt")
+    # query = "共同犯罪是几人以上"
+    # info, context = search_from_chroma(query)
+    # print(llm(info, context, query))

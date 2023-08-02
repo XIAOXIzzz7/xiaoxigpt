@@ -1,4 +1,5 @@
-
+import time
+from threading import Thread
 from langchain.embeddings.sentence_transformer import SentenceTransformerEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import Chroma
@@ -11,19 +12,26 @@ from langchain.prompts import (
 )
 from langchain import LLMChain
 import os
-
+import gradio as gr
 import chromadb
-
+from chromadb.config import Settings
 import json
+from chromadb.config import Settings
 import logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger(__name__)
+PERSIST_DIRECTORY = "./chroma_db"
+CHROMA_SETTINGS = Settings(
+    chroma_db_impl="duckdb+parquet", persist_directory=PERSIST_DIRECTORY, anonymized_telemetry=False
+)
+
 
 class LocalGptX():
-    embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
+    # 实例化embedding模型
 
     def __init__(self):
-        pass
+        self.embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
+        self.local_llm = None
 
     def save_to_chroma(self, path):
         # 加载文档并将其拆分成块
@@ -31,14 +39,16 @@ class LocalGptX():
         documents = loader.load()
         text_splitter = CharacterTextSplitter(chunk_size=128, chunk_overlap=32)
         docs = text_splitter.split_documents(documents)
-        # 实例化embedding模型
-        embedding_function = SentenceTransformerEmbeddings(model_name="GanymedeNil/text2vec-large-chinese")
+
         # 设置persist_directory可持久化保存至磁盘
-        Chroma.from_documents(docs, embedding_function, persist_directory="./chroma_db")
+        Chroma.from_documents(documents=docs, embedding=self.embedding_function,
+                              persist_directory=PERSIST_DIRECTORY,
+                              client_settings=chromadb.config.Settings(anonymized_telemetry=False))
 
     def search_from_chroma(self, llm, query):
         # 从磁盘加载
-        db3 = Chroma(persist_directory="./chroma_db", embedding_function=self.embedding_function)
+        db3 = Chroma(persist_directory=PERSIST_DIRECTORY, embedding_function=self.embedding_function,
+                     )
         docs = db3.similarity_search(query)
         context = docs[0].page_content
         template = """\
@@ -57,6 +67,7 @@ class LocalGptX():
 
     def llm(self):
         model_id = "lmsys/vicuna-7b-v1.3"
+        # model_id = "RicardoLee/Llama2-chat-13B-Chinese-50W"
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
@@ -78,18 +89,28 @@ class LocalGptX():
 
         )
         local_llm = HuggingFacePipeline(pipeline=pipe)
-        return local_llm
+        self.local_llm = local_llm
+
+    def chatllm(self, message, history):
+        result = localgpt.search_from_chroma(self.local_llm, message)
+        for i in range(len(result)):
+            time.sleep(0.05)
+            yield result[:i+1]
 
 
 if __name__ == '__main__':
-    localgpt =LocalGptX()
+    localgpt = LocalGptX()
     if not os.path.exists("./chroma_db"):
         localgpt.save_to_chroma("./刑法.txt")
-    llm = localgpt.llm()
-    # query = input("请输入你的问题：")
-    # print(localgpt.search_from_chroma(llm, query))
-    while True:
-        query = input("请输入你的问题：")
-        if query == "exit()":
-            break
-        print(localgpt.search_from_chroma(llm, query))
+    localgpt.llm()
+    # t = Thread(localgpt.llm())
+    # t.start()
+    gr.ChatInterface(localgpt.chatllm).queue().launch(server_name="0.0.0.0", server_port=8806)
+
+
+
+    # while True:
+    #     query = input("请输入你的问题：")
+    #     if query == "exit()":
+    #         break
+    #     print(localgpt.search_from_chroma(llm, query))
